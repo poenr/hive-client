@@ -20,7 +20,7 @@ if [ ! -f "spark-2.4.4-bin-hadoop2.7.tgz" ];then
 wget -c http://dl.software.dc/dist/spark-2.4.4-bin-hadoop2.7.tgz
 fi
 if [ ! -f "apache-hive-2.3.9-bin.tar.gz" ];then
-wget -c http://dl.software.dc/dist/apache-hive-1.2.1-bin.tar.gz
+wget -c http://dl.software.dc/dist/apache-hive-2.3.9-bin.tar.gz
 fi
 if [ ! -f "flinkx.7z" ];then
 wget -c http://dl.software.dc/dist/flinkx.7z
