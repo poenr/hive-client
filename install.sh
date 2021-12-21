@@ -74,11 +74,18 @@ cp conf/hadoop/hadoop-2.7.4/etc/hadoop/hdfs-site.xml /opt/spark/spark-2.4.4-bin-
 cp conf/hadoop/hadoop-2.7.4/etc/hadoop/core-site.xml /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/
 cp conf/hive/apache-hive-2.3.9-bin/conf/hive-site.xml /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/
 
+#spark log4j配置
+cp /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/log4j.properties.template /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/log4j.properties
+sed -i "s/log4j.rootCategory=INFO/log4j.rootCategory=ERROR/" /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/log4j.properties
+
 #flink客户端配置
 
 #复制yarn模式所需jar包到hive安装目录下
 cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-core-1.9.jar /opt/flink/flink-1.10.1/lib/
 cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-client-1.9.jar /opt/flink/flink-1.10.1/lib/
+
+# 新版flink不支持hadoop,需要下载hadoop依赖放入到FLINK_HOME/lib目录才可以连接到hdfs
+cp ./lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar /opt/flink/flink-1.10.1/lib/
 
 cat <<'EOF'>> /opt/flink/flink-1.10.1/conf/flink-conf.yaml
 
@@ -161,3 +168,48 @@ ln -s /opt/spark/spark-2.4.4-bin-hadoop2.7/conf /appcom/config/spark-config
 rm -rf /appcom/config/flink-config
 ln -s /opt/flink/flink-1.10.1/conf /appcom/config/flink-config
 fi
+
+
+#flinkx下增加start.sh
+cat <<'EOF'> /opt/flinkx/flinkx-1.10.4/flinkx/start.sh
+#!/bin/bash
+sh /opt/flinkx/flinkx-1.10.4/flinkx/bin/flinkx -mode yarnPer -job "$1" -flinkconf /opt/flink/flink-1.10.1/conf -jobid "$2"
+echo "$1"
+exit 0
+EOF
+
+chmod a+x  /opt/flinkx/flinkx-1.10.4/flinkx/start.sh
+
+mkdir -p /opt/flinkx/flinkx-1.10.4/flinkx/job
+
+#flinkx配置文件flink-conf.yaml
+cat <<'EOF'>  /opt/flinkx/flinkx-1.10.4/flinkx/flinkconf/flink-conf.yaml
+rest.bind-port: 8888
+rest.address: namenode
+#断点续传的环境准备
+state.checkpoints.dir: hdfs://namenode:8020/checkpoints/metadata
+state.checkpoints.num-retained: 10
+EOF
+
+#flink集成Prometheus
+cp /opt/flink/flink-1.10.1/opt/flink-metrics-prometheus-1.10.1.jar /opt/flink/flink-1.10.1/lib/
+
+cat <<'EOF'>> /opt/flink/flink-1.10.1/conf/flink-conf.yaml
+##### 与 Prometheus 集成配置 #####
+metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
+# 这里写PushGateway的主机名与端口号
+metrics.reporter.promgateway.host: pushgateway.software.dc
+metrics.reporter.promgateway.port: 9091
+# Flink metric在前端展示的标签（前缀）与随机后缀
+metrics.reporter.promgateway.jobName: flink-metrics
+metrics.reporter.promgateway.randomJobNameSuffix: true
+metrics.reporter.promgateway.deleteOnShutdown: false
+metrics.reporter.promgateway.interval: 30 SECONDS
+                           
+EOF
+
+#权限设置
+chown -R hadoop:hadoop /opt/flink
+chown -R hadoop:hadoop /opt/flinkx
+
+#如果pushgateway.software.dc域名未解析，需要在/etc/hosts文件中配置
