@@ -2,12 +2,14 @@
 
 # jdk8安装环境略过
 
-rm -rf /opt/{hadoop,spark,hive}
-mkdir /opt/{hadoop,spark,hive}
+rm -rf /opt/{flink,hadoop,spark,hive,flinkx}
+mkdir /opt/{flink,hadoop,spark,hive,flinkx}
 
 cd ./download
 # 此处从软开中心技术部内网NAS服务器下载
-
+if [ ! -f "flink-1.12.2-bin-scala_2.11.tgz" ];then
+wget -c http://dl.software.dc/dist/flink-1.12.2-bin-scala_2.11.tgz
+fi
 if [ ! -f "scala-2.11.8.tgz" ];then
 wget -c http://dl.software.dc/dist/scala-2.11.8.tgz
 fi
@@ -20,11 +22,18 @@ fi
 if [ ! -f "apache-hive-2.3.9-bin.tar.gz" ];then
 wget -c http://dl.software.dc/dist/apache-hive-2.3.9-bin.tar.gz
 fi
+if [ ! -f "flinkx.7z" ];then
+wget -c http://dl.software.dc/dist/flinkx.7z
+fi
 
-tar xvf scala-2.11.8.tgz -C /usr/local/ && \
+tar xvf flink-1.12.2-bin-scala_2.11.tgz -C /opt/flink/ && \
+    tar xvf scala-2.11.8.tgz -C /usr/local/ && \
     tar xvf hadoop-2.7.4.tar.gz -C /opt/hadoop/ && \
     tar xvf spark-2.4.4-bin-hadoop2.7.tgz -C /opt/spark/ && \
     tar xvf apache-hive-2.3.9-bin.tar.gz -C /opt/hive/ 
+
+yum install -y p7zip
+7za x flinkx.7z -r -o/opt/flinkx/flinkx-1.10.4/ -Y
 
 cd ../
 
@@ -69,6 +78,24 @@ cp conf/hive/apache-hive-2.3.9-bin/conf/hive-site.xml /opt/spark/spark-2.4.4-bin
 cp /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/log4j.properties.template /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/log4j.properties
 sed -i "s/log4j.rootCategory=INFO/log4j.rootCategory=ERROR/" /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/log4j.properties
 
+#flink客户端配置
+
+#复制yarn模式所需jar包到hive安装目录下
+cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-core-1.9.jar /opt/flink/flink-1.12.2/lib/
+cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-client-1.9.jar /opt/flink/flink-1.12.2/lib/
+
+# 新版flink不支持hadoop,需要下载hadoop依赖放入到FLINK_HOME/lib目录才可以连接到hdfs
+cp ./lib/flink-shaded-hadoop-2-uber-2.8.3-10.0.jar /opt/flink/flink-1.12.2/lib/
+
+cat <<'EOF'>> /opt/flink/flink-1.12.2/conf/flink-conf.yaml
+
+#YarnSessionClusterEntrypoint bind Port
+rest.bind-port: 50031-50040
+                           
+EOF
+
+#flinkx客户端配置
+rm -rf /opt/flinkx/flinkx-1.10.4/flinkx/flinkx-*
 
 
 #JAVA_HOME环境变量单独配置
@@ -82,6 +109,7 @@ export SPARK_HOME=/opt/spark/spark-2.4.4-bin-hadoop2.7
 export SPARK_CONF_DIR=$SPARK_HOME/conf
 export PYSPARK_ALLOW_INSECURE_GATEWAY=1
 export HIVE_HOME=/opt/hive/apache-hive-2.3.9-bin
+export FLINK_HOME=/opt/flink/flink-1.12.2
 export HIVE_CONF_DIR=$HIVE_HOME/conf
 export SCALA_HOME=/usr/local/scala-2.11.8
 export HADOOP_HOME=/opt/hadoop/hadoop-2.7.4
@@ -89,7 +117,7 @@ export HADOOP_CONF_PATH=$HADOOP_HOME/etc/hadoop
 export HADOOP_CONF_DIR=$HADOOP_HOME/etc/hadoop
 export HADOOP_CLASSPATH=`${HADOOP_HOME}/bin/hadoop classpath`
 export CLASSPATH=$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar
-export PATH=${JAVA_HOME}/bin/:${SPARK_HOME}/bin:${HIVE_HOME}/bin:${SCALA_HOME}/bin:${HADOOP_HOME}/sbin:${HADOOP_HOME}/bin:$PATH
+export PATH=${JAVA_HOME}/bin/:${SPARK_HOME}/bin:${HIVE_HOME}/bin:${SCALA_HOME}/bin:${FLINK_HOME}/bin:${HADOOP_HOME}/sbin:${HADOOP_HOME}/bin:$PATH
 
 EOF
 
@@ -137,4 +165,51 @@ rm -rf /appcom/config/hive-config
 ln -s /opt/hive/apache-hive-2.3.9-bin/conf /appcom/config/hive-config
 rm -rf /appcom/config/spark-config
 ln -s /opt/spark/spark-2.4.4-bin-hadoop2.7/conf /appcom/config/spark-config
+rm -rf /appcom/config/flink-config
+ln -s /opt/flink/flink-1.12.2/conf /appcom/config/flink-config
 fi
+
+
+#flinkx下增加start.sh
+cat <<'EOF'> /opt/flinkx/flinkx-1.10.4/flinkx/start.sh
+#!/bin/bash
+sh /opt/flinkx/flinkx-1.10.4/flinkx/bin/flinkx -mode yarnPer -job "$1" -flinkconf /opt/flink/flink-1.12.2/conf -jobid "$2"
+echo "$1"
+exit 0
+EOF
+
+chmod a+x  /opt/flinkx/flinkx-1.10.4/flinkx/start.sh
+
+mkdir -p /opt/flinkx/flinkx-1.10.4/flinkx/job
+
+#flinkx配置文件flink-conf.yaml
+cat <<'EOF'>  /opt/flinkx/flinkx-1.10.4/flinkx/flinkconf/flink-conf.yaml
+rest.bind-port: 8888
+rest.address: namenode
+#断点续传的环境准备
+state.checkpoints.dir: hdfs://namenode:8020/checkpoints/metadata
+state.checkpoints.num-retained: 10
+EOF
+
+#flink集成Prometheus
+cp /opt/flink/flink-1.12.2/opt/flink-metrics-prometheus-1.12.2.jar /opt/flink/flink-1.12.2/lib/
+
+cat <<'EOF'>> /opt/flink/flink-1.12.2/conf/flink-conf.yaml
+##### 与 Prometheus 集成配置 #####
+metrics.reporter.promgateway.class: org.apache.flink.metrics.prometheus.PrometheusPushGatewayReporter
+# 这里写PushGateway的主机名与端口号
+metrics.reporter.promgateway.host: pushgateway.software.dc
+metrics.reporter.promgateway.port: 9091
+# Flink metric在前端展示的标签（前缀）与随机后缀
+metrics.reporter.promgateway.jobName: flink-metrics
+metrics.reporter.promgateway.randomJobNameSuffix: true
+metrics.reporter.promgateway.deleteOnShutdown: false
+metrics.reporter.promgateway.interval: 30 SECONDS
+                           
+EOF
+
+#权限设置
+chown -R hadoop:hadoop /opt/flink
+chown -R hadoop:hadoop /opt/flinkx
+
+#如果pushgateway.software.dc域名未解析，需要在/etc/hosts文件中配置

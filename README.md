@@ -8,8 +8,8 @@ scala 2.11.8
 hadoop 2.7.4
 hive 2.3.9
 spark 2.4.4
-flink 1.10.1
-flinkx 1.10.4
+flink 1.12.2
+flinkx 1.12.X
 
 其中flinkx下载地址为https://download.fastgit.org/DTStack/flinkx/releases/download/1.10.4/flinkx.7z
 
