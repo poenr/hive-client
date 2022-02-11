@@ -57,7 +57,7 @@ mkdir /opt/{flink,hadoop,spark,hive}
 
 cd ./download
 
-tar xvf flink-1.10.1-bin-hadoop27-scala_2.11.tgz -C /opt/flink/ && \
+tar xvf flink-1.12.2-bin-scala_2.11.tgz -C /opt/flink/ && \
     tar xvf scala-2.11.8.tgz -C /usr/local/ && \
     tar xvf hadoop-2.7.4.tar.gz -C /opt/hadoop/ && \
     tar xvf spark-2.4.4-bin-hadoop2.7.tgz -C /opt/spark/ && \
@@ -86,7 +86,7 @@ export SPARK_HOME=/opt/spark/spark-2.4.4-bin-hadoop2.7
 export SPARK_CONF_DIR=$SPARK_HOME/conf
 export PYSPARK_ALLOW_INSECURE_GATEWAY=1
 export HIVE_HOME=/opt/hive/apache-hive-2.3.9-bin
-export FLINK_HOME=/opt/flink/flink-1.10.1
+export FLINK_HOME=/opt/flink/flink-1.12.2
 export HIVE_CONF_DIR=$HIVE_HOME/conf
 export SCALA_HOME=/usr/local/scala-2.11.8
 export HADOOP_HOME=/opt/hadoop/hadoop-2.7.4
@@ -203,19 +203,19 @@ spark-submit --master yarn --class org.apache.spark.examples.SparkPi /opt/spark/
 
 #复制yarn模式所需jar包到hive安装目录下
 ```
-cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-core-1.9.jar /opt/flink/flink-1.10.1/lib/
-cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-client-1.9.jar /opt/flink/flink-1.10.1/lib/
+cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-core-1.9.jar /opt/flink/flink-1.12.2/lib/
+cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-client-1.9.jar /opt/flink/flink-1.12.2/lib/
 
 #flink on yarn
 
 #Flink yarn-session
 yarn-session.sh -n 3 -s 3 -jm 1024 -tm 1024 -d -nm FlinkOnYarnSession -id
-flink run -c org.apache.flink.examples.java.wordcount.WordCount /opt/flink/flink-1.10.1/examples/batch/WordCount.jar
+flink run -c org.apache.flink.examples.java.wordcount.WordCount $FLINK_HOME/examples/batch/WordCount.jar
 
 yarn application -kill application_1576832892572_000
 
 #Flink Per-Job-Cluster
-flink run -m yarn-cluster -yn 2 -yjm 1024 -ytm 1024  /opt/flink/flink-1.10.1/examples/batch/WordCount.jar
+flink run -m yarn-cluster -yn 2 -yjm 1024 -ytm 1024  $FLINK_HOME/examples/batch/WordCount.jar
 ```
 
 ```

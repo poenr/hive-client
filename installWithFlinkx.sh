@@ -192,7 +192,7 @@ state.checkpoints.num-retained: 10
 EOF
 
 #flink集成Prometheus
-cp /opt/flink/flink-1.12.2/opt/flink-metrics-prometheus-1.12.2.jar /opt/flink/flink-1.12.2/lib/
+cp /opt/flink/flink-1.12.2/plugins/metrics-prometheus/flink-metrics-prometheus-1.12.2.jar /opt/flink/flink-1.12.2/lib/
 
 cat <<'EOF'>> /opt/flink/flink-1.12.2/conf/flink-conf.yaml
 ##### 与 Prometheus 集成配置 #####

@@ -31,9 +31,9 @@ spark-submit --master yarn --class org.apache.spark.examples.SparkPi /opt/spark/
 # test flink
 
 #Flink Per-Job-Cluster
-flink run -m yarn-cluster /opt/flink/flink-1.10.1/examples/batch/WordCount.jar
+flink run -m yarn-cluster $FLINK_HOME/examples/batch/WordCount.jar
 
-flink run -m yarn-cluster /opt/flink/flink-1.10.1/examples/streaming/TopSpeedWindowing.jar
+flink run -m yarn-cluster $FLINK_HOME/examples/streaming/TopSpeedWindowing.jar
 
 # test flinkx
 

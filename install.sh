@@ -41,6 +41,10 @@ cp -r -f conf/hive/apache-hive-2.3.9-bin/conf/hive-site.xml /opt/hive/apache-hiv
 cp db/mysql-connector-java-5.1.49.jar /opt/hive/apache-hive-2.3.9-bin/lib/
 cp db/mysql-connector-java-5.1.49.jar /opt/spark/spark-2.4.4-bin-hadoop2.7/jars/ 
 
+#复制yarn模式所需jar包到spark安装目录下
+cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-core-1.9.jar /opt/spark/spark-2.4.4-bin-hadoop2.7/jars/ 
+cp /opt/hadoop/hadoop-2.7.4/share/hadoop/yarn/lib/jersey-client-1.9.jar /opt/spark/spark-2.4.4-bin-hadoop2.7/jars/ 
+
 #spark客户端所需配置文件
 cat <<'EOF'>> /opt/spark/spark-2.4.4-bin-hadoop2.7/conf/spark-env.sh
 export SPARK_DIST_CLASSPATH=$(/opt/hadoop/hadoop-2.7.4/bin/hadoop classpath)
